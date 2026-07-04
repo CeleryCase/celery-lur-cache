@@ -27,6 +27,10 @@ public:
   }
 
   void put(int key, int value) {
+    if (_capacity == 0) {
+      return;
+    }
+
     auto it = _hash_map.find(key);
 
     if (it != _hash_map.end()) {

@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "lru_cache.h"
+#include "src/lru_cache.h"
 
 int main(void) {
   LRUCache cache(3);
