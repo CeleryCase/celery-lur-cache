@@ -1,29 +1,24 @@
 #ifndef LRU_CACHE_H
+#define LRU_CACHE_H
 
-#include <cstdint>
+#include <cstddef>
 #include <list>
+#include <optional>
 #include <unordered_map>
 
 class LRUCache {
 public:
-  LRUCache(uint32_t capacity) : _capacity(capacity) {}
+  explicit LRUCache(std::size_t capacity) : _capacity(capacity) {}
 
-  int get(int key) {
+  std::optional<int> get(int key) {
     auto it = _hash_map.find(key);
     if (it == _hash_map.end()) {
-      return -1;
+      return {};
     }
 
-    auto kv = *it->second;
-
-    _list.erase(it->second);
-
-    _list.push_front(kv);
-
-    // update the value of key in _hash_map
-    _hash_map[key] = _list.begin();
-
-    return kv.second;
+    // move node to the head of list
+    _list.splice(_list.begin(), _list, it->second);
+    return it->second->second;
   }
 
   void put(int key, int value) {
@@ -34,7 +29,9 @@ public:
     auto it = _hash_map.find(key);
 
     if (it != _hash_map.end()) {
-      _list.erase(it->second);
+      it->second->second = value;
+      _list.splice(_list.begin(), _list, it->second);
+      return;
     }
 
     if (_list.size() >= _capacity) {
@@ -45,16 +42,17 @@ public:
 
     _list.push_front({key, value});
 
-    // update the value of key in _hash_map
     _hash_map[key] = _list.begin();
   }
 
-  bool exists(int key) { return _hash_map.find(key) != _hash_map.end(); }
+  bool contains(int key) const {
+    return _hash_map.find(key) != _hash_map.end();
+  }
 
-  uint32_t size() { return _list.size(); }
+  std::size_t size() const { return _list.size(); }
 
 private:
-  uint32_t _capacity;
+  std::size_t _capacity;
   std::list<std::pair<int, int>> _list;
   std::unordered_map<int, std::list<std::pair<int, int>>::iterator> _hash_map;
 };

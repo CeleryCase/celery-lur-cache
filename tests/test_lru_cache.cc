@@ -2,12 +2,26 @@
 
 #include "../src/lru_cache.h"
 
-TEST(LRUCacheTest, NewCacheIsEmptyAndMissingKeysReturnMinusOne) {
+namespace {
+
+void ExpectCacheHit(LRUCache &cache, int key, int expected_value) {
+  auto value = cache.get(key);
+  ASSERT_TRUE(value.has_value());
+  EXPECT_EQ(value.value(), expected_value);
+}
+
+void ExpectCacheMiss(LRUCache &cache, int key) {
+  EXPECT_FALSE(cache.get(key).has_value());
+}
+
+} // namespace
+
+TEST(LRUCacheTest, NewCacheIsEmptyAndMissingKeyReturnsEmptyOptional) {
   LRUCache cache(3);
 
   EXPECT_EQ(cache.size(), 0);
-  EXPECT_FALSE(cache.exists(1));
-  EXPECT_EQ(cache.get(1), -1);
+  EXPECT_FALSE(cache.contains(1));
+  ExpectCacheMiss(cache, 1);
   EXPECT_EQ(cache.size(), 0);
 }
 
@@ -16,9 +30,9 @@ TEST(LRUCacheTest, PutStoresValueAndMarksKeyAsExisting) {
 
   cache.put(1, 10);
 
-  EXPECT_TRUE(cache.exists(1));
+  EXPECT_TRUE(cache.contains(1));
   EXPECT_EQ(cache.size(), 1);
-  EXPECT_EQ(cache.get(1), 10);
+  ExpectCacheHit(cache, 1, 10);
 }
 
 TEST(LRUCacheTest, PutUpdatesExistingKeyWithoutIncreasingSize) {
@@ -28,8 +42,8 @@ TEST(LRUCacheTest, PutUpdatesExistingKeyWithoutIncreasingSize) {
   cache.put(1, 20);
 
   EXPECT_EQ(cache.size(), 1);
-  EXPECT_TRUE(cache.exists(1));
-  EXPECT_EQ(cache.get(1), 20);
+  EXPECT_TRUE(cache.contains(1));
+  ExpectCacheHit(cache, 1, 20);
 }
 
 TEST(LRUCacheTest, PutEvictsLeastRecentlyInsertedKeyWhenCapacityIsReached) {
@@ -40,12 +54,12 @@ TEST(LRUCacheTest, PutEvictsLeastRecentlyInsertedKeyWhenCapacityIsReached) {
   cache.put(3, 30);
 
   EXPECT_EQ(cache.size(), 2);
-  EXPECT_FALSE(cache.exists(1));
-  EXPECT_TRUE(cache.exists(2));
-  EXPECT_TRUE(cache.exists(3));
-  EXPECT_EQ(cache.get(1), -1);
-  EXPECT_EQ(cache.get(2), 20);
-  EXPECT_EQ(cache.get(3), 30);
+  EXPECT_FALSE(cache.contains(1));
+  EXPECT_TRUE(cache.contains(2));
+  EXPECT_TRUE(cache.contains(3));
+  ExpectCacheMiss(cache, 1);
+  ExpectCacheHit(cache, 2, 20);
+  ExpectCacheHit(cache, 3, 30);
 }
 
 TEST(LRUCacheTest, GetRefreshesKeySoNextPutEvictsOlderKey) {
@@ -53,15 +67,15 @@ TEST(LRUCacheTest, GetRefreshesKeySoNextPutEvictsOlderKey) {
 
   cache.put(1, 10);
   cache.put(2, 20);
-  EXPECT_EQ(cache.get(1), 10);
+  ExpectCacheHit(cache, 1, 10);
   cache.put(3, 30);
 
-  EXPECT_TRUE(cache.exists(1));
-  EXPECT_FALSE(cache.exists(2));
-  EXPECT_TRUE(cache.exists(3));
-  EXPECT_EQ(cache.get(1), 10);
-  EXPECT_EQ(cache.get(2), -1);
-  EXPECT_EQ(cache.get(3), 30);
+  EXPECT_TRUE(cache.contains(1));
+  EXPECT_FALSE(cache.contains(2));
+  EXPECT_TRUE(cache.contains(3));
+  ExpectCacheHit(cache, 1, 10);
+  ExpectCacheMiss(cache, 2);
+  ExpectCacheHit(cache, 3, 30);
 }
 
 TEST(LRUCacheTest, UpdatingExistingKeyRefreshesKeySoNextPutEvictsOlderKey) {
@@ -72,12 +86,12 @@ TEST(LRUCacheTest, UpdatingExistingKeyRefreshesKeySoNextPutEvictsOlderKey) {
   cache.put(1, 100);
   cache.put(3, 30);
 
-  EXPECT_TRUE(cache.exists(1));
-  EXPECT_FALSE(cache.exists(2));
-  EXPECT_TRUE(cache.exists(3));
-  EXPECT_EQ(cache.get(1), 100);
-  EXPECT_EQ(cache.get(2), -1);
-  EXPECT_EQ(cache.get(3), 30);
+  EXPECT_TRUE(cache.contains(1));
+  EXPECT_FALSE(cache.contains(2));
+  EXPECT_TRUE(cache.contains(3));
+  ExpectCacheHit(cache, 1, 100);
+  ExpectCacheMiss(cache, 2);
+  ExpectCacheHit(cache, 3, 30);
 }
 
 TEST(LRUCacheTest, MissingGetDoesNotAffectEvictionOrder) {
@@ -85,12 +99,12 @@ TEST(LRUCacheTest, MissingGetDoesNotAffectEvictionOrder) {
 
   cache.put(1, 10);
   cache.put(2, 20);
-  EXPECT_EQ(cache.get(99), -1);
+  ExpectCacheMiss(cache, 99);
   cache.put(3, 30);
 
-  EXPECT_FALSE(cache.exists(1));
-  EXPECT_TRUE(cache.exists(2));
-  EXPECT_TRUE(cache.exists(3));
+  EXPECT_FALSE(cache.contains(1));
+  EXPECT_TRUE(cache.contains(2));
+  EXPECT_TRUE(cache.contains(3));
 }
 
 TEST(LRUCacheTest, SupportsNegativeKeysAndValues) {
@@ -99,10 +113,10 @@ TEST(LRUCacheTest, SupportsNegativeKeysAndValues) {
   cache.put(-1, -10);
   cache.put(-2, -20);
 
-  EXPECT_TRUE(cache.exists(-1));
-  EXPECT_TRUE(cache.exists(-2));
-  EXPECT_EQ(cache.get(-1), -10);
-  EXPECT_EQ(cache.get(-2), -20);
+  EXPECT_TRUE(cache.contains(-1));
+  EXPECT_TRUE(cache.contains(-2));
+  ExpectCacheHit(cache, -1, -10);
+  ExpectCacheHit(cache, -2, -20);
 }
 
 TEST(LRUCacheTest, CapacityOneKeepsOnlyMostRecentKey) {
@@ -112,10 +126,10 @@ TEST(LRUCacheTest, CapacityOneKeepsOnlyMostRecentKey) {
   cache.put(2, 20);
 
   EXPECT_EQ(cache.size(), 1);
-  EXPECT_FALSE(cache.exists(1));
-  EXPECT_TRUE(cache.exists(2));
-  EXPECT_EQ(cache.get(1), -1);
-  EXPECT_EQ(cache.get(2), 20);
+  EXPECT_FALSE(cache.contains(1));
+  EXPECT_TRUE(cache.contains(2));
+  ExpectCacheMiss(cache, 1);
+  ExpectCacheHit(cache, 2, 20);
 }
 
 TEST(LRUCacheTest, ZeroCapacityCacheDoesNotStoreValues) {
@@ -125,8 +139,8 @@ TEST(LRUCacheTest, ZeroCapacityCacheDoesNotStoreValues) {
   cache.put(2, 20);
 
   EXPECT_EQ(cache.size(), 0);
-  EXPECT_FALSE(cache.exists(1));
-  EXPECT_FALSE(cache.exists(2));
-  EXPECT_EQ(cache.get(1), -1);
-  EXPECT_EQ(cache.get(2), -1);
+  EXPECT_FALSE(cache.contains(1));
+  EXPECT_FALSE(cache.contains(2));
+  ExpectCacheMiss(cache, 1);
+  ExpectCacheMiss(cache, 2);
 }

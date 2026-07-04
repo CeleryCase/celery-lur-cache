@@ -13,13 +13,12 @@ int main(void) {
   std::cout << "put (1, 11), (2, 22), (3,33)" << std::endl;
 
   auto value = cache.get(1);
-  std::cout << "get key: 1, value: " << value << std::endl;
+  std::cout << "get key: 1, value: " << value.value() << std::endl;
 
   cache.put(4, 44);
 
   std::cout << "put (4, 44)" << std::endl;
-
-  std::cout << "exists key: 2 is " << cache.exists(2) << std::endl;
+  std::cout << "exists key: 2 is " << cache.contains(2) << std::endl;
 
   return 0;
 }

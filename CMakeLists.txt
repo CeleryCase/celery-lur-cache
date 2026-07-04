@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.20)
 
-project(celery-lru-cache LANGUAGES CXX)
+project(celery-lru-cache VERSION 0.1.0 LANGUAGES CXX)
 
 add_executable(lru_test demo.cc)
 
